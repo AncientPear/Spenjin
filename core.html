@@ -164,6 +164,9 @@ var Clock = (function() {
 			    pinMission:function(mission){//add mission (function) to clock
 		    		this.__missions.push(mission);
 				},
+                unpinMission:function(mission){//remove mission from clock
+		    		this.__missions.splice(this.__missions.indexOf(mission),1);
+				},
 				destroy:function(){
 					this.looping=false;
 					this.super.destroy.call(this);
@@ -174,10 +177,52 @@ var Clock = (function() {
 var View = createGameObjectConstructor(function(canvasElement){
         if (typeof (canvasElement)==='string') {this.canvasElement=document.getElementById(canvasElement);}//treat canvasElement as an Id
         else {this.canvasElement=canvasElement;}
+        this.width=canvasElement.width;
+        this.height=canvasElement.height;
         this.context=this.canvasElement.getContext('2d');
         this.slides=[];
     },(function(){
-            //TODO: add velcocity vec2 in fixture class
+
+        var Artist=(function(){
+
+            var viewsThatHaveArtists=[];//Views that already have Artists
+
+            var paintView=function(){
+
+                    this.view.context.clearRect(0,0,this.width,this.height)//clear canvas
+                    var slides=this.view.slides;
+
+                    for (var i in slides) {
+                        if (slides[i].paint){//check if slide gets painted
+                            for (var ii in slides[i].fixtures){
+
+                                var fixture=slides[i].fixtures[ii];
+
+                                if (fixture.paint){//check if fixture is painted
+                                    if (typeof (fixture.instance.draw)==='function') {fixture.instance.draw();}//draw
+
+                                    else{fixture.paint=false;}//auto switch (remove for perf)
+                                }
+                            }
+                        }
+
+                    }
+               };
+            return createGameObjectConstructor(function(view,clock){//Paints views
+                if (viewsThatHaveArtists.indexOf(view)!=-1) {throw "View already has an Artist";}//TODO: test this
+                else {viewsThatHaveArtists.push(view);}
+                this.clock=clock;
+                this.view=view;
+                this.paintView=paintView.bind(this);
+                clock.pinMission(this.paintView);
+            },{
+                destroy:function(){
+                    viewsThatHaveArtists.splice(viewsWithArtists.indexOf(view),1);//View is free to create an Artist again
+                    this.clock.unpinMission(this.paintView);
+                    this.super.destroy.call(this);
+                }
+            });
+      }());
 
 
          var Slide=createGameObjectConstructor(function(view){//where fixtures are stored
@@ -191,7 +236,7 @@ var View = createGameObjectConstructor(function(canvasElement){
 
              var Fixture=createGameObjectConstructor(function(slide,instance,vec3,boundb4,OPTphysics,OPTpaint){//fixtures go in slides
                     this.slide=slide;
-                    this.fixture=instance;
+                    this.instance=instance;
                     this.pos=vec3;
                     this.vel=Vec2(0,0);//starts at rest
                     this.boundB=boundb4;
@@ -232,12 +277,19 @@ var View = createGameObjectConstructor(function(canvasElement){
             }())
         );
 
-            return {
+            return {//prototype
 
                 Slide:function(){
                     return Slide(this);
                 },
 
+                Artist:function(clock){
+                    return Artist(this,clock);
+                },
+                resize:function(){
+                    this.width=canvasElement.width;
+                    this.height=canvasElement.height;
+                },
                 destroy:function(){
                     for (var i in this.slides){
                         this.slides[i].destroy(true);//true because its from a View
@@ -249,19 +301,20 @@ var View = createGameObjectConstructor(function(canvasElement){
 );
 
 //TODO: decide whether to include these next 2 classes in the View class
-var Artist = createGameObjectConstructor(function(view){//Paints views, check slides if paint==true and if fixture paints, if it doesn't have draw method turn off paints to optimize
+    //TODO: add acc Vec2 to fixtures
+
+var Physicist = createGameObjectConstructor(function(view,clock){//handles physics in a view, skip slides that dont have physics, and fixtures without physics
         //constructor
     },{
         //prototype
     }
 );
 
-var Physicist = createGameObjectConstructor(function(view){//handles physics in a view, skip slides that dont have physics, and fixtures without physics
-        //constructor
-    },{
-        //prototype
-    }
-);
+
+//TODO: finish this and place in events
+     /*
+     add resize listener to window that interates View's instance array and calls resize on all of them
+     */
 
 </script>
 <canvas id='c'></canvas>

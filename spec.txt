@@ -54,6 +54,8 @@ Clock:
                                  id of loop (number)
                            pinMission:
                                  method takes function and adds it to __missions where it gets called every loop returns
+                           unpinMission:
+                                 method, takes function then removes it from __missions
                            __missions: *for internal use only
                                  stack of functions that get called each loop returns
                            __executeMissionsBound: *for internal use only
@@ -117,7 +119,7 @@ Fixture:
                    Object, with properties:
                       slide:
                             reference to slide fixture resides in
-                      fixture:
+                      instance:
                             reference to instance fixture holds
                       pos:
                             Vec3, where fixture is located in slide relative to top left of canvas, then apply slide's camera position
