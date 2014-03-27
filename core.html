@@ -1,0 +1,267 @@
+<script>
+'use strict';
+
+var createGameObjectConstructor = (function () {
+
+	var recent = function () {//every actual object constructor will share this method
+		return (this.instanceArray.length> 0) ? this.instanceArray[this.instanceArray.length - 1] :null;
+	};//add more functions like this to create methods for the "final constructor"
+
+	var countDescriptor={get: function() {return this.instanceArray.length; } };
+
+	return function (constructor, prototypeProps) {//createGameObjectConstructor
+
+		//convert prototypeProps into properties object
+		for (var i in prototypeProps){
+			var quicksave=prototypeProps[i];
+			prototypeProps[i]={
+				value:quicksave,
+				writable: false,
+     			enumerable: true,
+     			configurable: false
+			}
+		}
+
+		var instanceRecycleStack = [];
+
+		var outerProto={//TODO: eventually find a way to only create this once
+			destroy:function() {
+				ret.instanceArray.splice(ret.instanceArray.indexOf(this),1);
+				if (instanceRecycleStack.length<100) {instanceRecycleStack.push(this);}//add to recycle pile
+			}
+		};
+		var innerProto=Object.create(outerProto,prototypeProps)
+		innerProto.constructor = constructor;//all objects can refer back to their constructor
+		innerProto.super=outerProto;
+
+		constructor.prototype = innerProto;//never actually used here...Yet
+
+		function ret() {//function that is returned
+
+			if (instanceRecycleStack.length>0) {
+				var instance=instanceRecycleStack.pop();
+				constructor.apply(instance, arguments);//reuse old instance
+			}
+			else {
+				var instance = Object.create(innerProto);//make new instance if there is none to recycle
+				constructor.apply(instance, arguments);//call constructor on new object
+				Object.seal(instance);//sealed for recyclibility
+			}
+			ret.instanceArray.push(instance);
+			return instance;
+		};
+
+		ret.recent = recent;
+		ret.instanceArray = [];
+		Object.defineProperty(ret, "count", countDescriptor);
+		return ret;
+	}
+
+}());
+
+//TEST CASES
+
+var Monster = createGameObjectConstructor(function (level) {
+    this.level=(level || 0);
+
+}, {
+	eatHuman:function () {
+		console.log('human consumed');
+	},
+	destroy:function(){
+		this.super.destroy.call(this);//destroy self
+	}
+});
+
+//TODO: find a home for the next three
+var Vec3 = createGameObjectConstructor(function(x,y,z){
+		this.x=x;
+		this.y=y;
+		this.z=z;
+	},{
+		translate:function(x,y,z){
+			this.x+=x;
+			this.y+=y;
+			this.z+=z;
+		}
+	}
+);
+
+var Vec2 = createGameObjectConstructor(function(x,y){
+		this.x=x;
+		this.y=y;
+	},{
+		translate:function(x,y){
+			this.x+=x;
+			this.y+=y;
+		}
+	}
+);
+
+var BoundB4 = createGameObjectConstructor(function(width,height){
+        this.width=width;
+        this.height=height;
+    },{
+        //prototype
+    }
+);
+
+var Clock = (function() {
+
+	var loopingDescriptor={
+		get:function(){
+			if (this.loopId!==false) {return true;}
+			else {return false;}
+		},
+		set:function(bool){
+			if (bool && this.loopId===false){
+				if (typeof (this.loopType)==='number'){
+					this.loopId=window.setInterval(this.__executeMissionsBound, this.loopType);
+				}
+				else {
+					this.loopId=window.requestAnimationFrame(this.__executeMissionsBound);
+				}
+			}
+			else if (!bool && this.loopId!==false){
+				if (typeof (this.loopType)==='number'){
+					window.clearInterval(this.loopId);
+					this.loopId=false;
+				}
+				else {
+					window.cancelAnimationFrame(this.loopId);
+					this.loopId=false;
+				}
+			}
+		}
+	};
+
+	var deltaMilisecondsDescriptor={
+		get:function(){
+			return (new Date().getTime())-this.timeStamp;//final-initial
+		}
+	};
+
+    var __executeMissions=function(){
+		this.timeStamp=(new Date().getTime());//time in miliseconds
+
+		if (this.looping) {this.loopId=window.requestAnimationFrame(this.__executeMissionsBound);}
+
+        for (var i in this.__missions){//not ordered
+			this.__missions[i]();
+		}
+	};
+
+	return createGameObjectConstructor(function(loopType){//loopType: framerate number or it'll use RAF
+			this.timeStamp=(new Date().getTime());
+			Object.defineProperty(this,'deltaMiliseconds', deltaMilisecondsDescriptor);
+
+			this.loopType=loopType;
+			this.loopId=false;
+			this.__executeMissionsBound=__executeMissions.bind(this);//bound to this so it can be called from interval
+			Object.defineProperty(this,'looping', loopingDescriptor);
+			this.__missions = [];//stack of functions for clock to call on interval
+		},{
+			    pinMission:function(mission){//add mission (function) to clock
+		    		this.__missions.push(mission);
+				},
+				destroy:function(){
+					this.looping=false;
+					this.super.destroy.call(this);
+				}
+		});
+}());
+
+var View = createGameObjectConstructor(function(canvasElement){
+        if (typeof (canvasElement)==='string') {this.canvasElement=document.getElementById(canvasElement);}//treat canvasElement as an Id
+        else {this.canvasElement=canvasElement;}
+        this.context=this.canvasElement.getContext('2d');
+        this.slides=[];
+    },(function(){
+            //TODO: add velcocity vec2 in fixture class
+
+
+         var Slide=createGameObjectConstructor(function(view){//where fixtures are stored
+                this.view=view;
+                this.cameraPos=Vec2(0,0);//relative to top-left of canvas
+                this.fixtures=[];//instances with coordinates attached
+                this.paint=true;//visible
+                this.physics=true;//if slide has physics
+                view.slides.push(this);
+            },(function(){
+
+             var Fixture=createGameObjectConstructor(function(slide,instance,vec3,boundb4,OPTphysics,OPTpaint){//fixtures go in slides
+                    this.slide=slide;
+                    this.fixture=instance;
+                    this.pos=vec3;
+                    this.vel=Vec2(0,0);//starts at rest
+                    this.boundB=boundb4;
+
+                    this.physics=OPTphysics;
+                    this.paint=OPTpaint;
+                    slide.fixtures.push(this);
+                },{
+
+                    destroy:function(fromSlide){//if being destroyed from a Slide splicing will mess it up
+                        if (typeof(fromSlide)==='undefined') {this.slide.fixtures.splice(this.slide.fixtures.indexOf(this),1);}//remove from slide's fixtures array
+                        this.fixture.destroy();
+                        this.pos.destroy();
+                        this.vel.destroy();
+                        this.boundB.destroy();
+                        this.super.destroy.call(this);
+                    }
+                }
+            );
+
+             return {
+                    Fixture:function(instance,vec3,boundb4,OPTphysics,OPTpaint){//instance, position, bounding box
+                        if (typeof (OPTphysics)==='undefined') {OPTphysics=true;}
+                        if (typeof (OPTpaint)==='undefined') {OPTpaint=true;}
+                        return Fixture(this,instance,vec3,boundb4,OPTphysics,OPTpaint);
+                    },
+
+                    destroy:function(fromView){//if being destroyed from a View splicing will mess it up
+                        if (typeof(fromView)==='undefined') {
+                            this.view.slides.splice(this.view.slides.indexOf(this),1);
+                        }
+                        for (var i in this.fixtures){
+                            this.fixtures[i].destroy(true);//true because its from a View
+                        }
+                        this.super.destroy.call(this);
+                    }
+                }
+            }())
+        );
+
+            return {
+
+                Slide:function(){
+                    return Slide(this);
+                },
+
+                destroy:function(){
+                    for (var i in this.slides){
+                        this.slides[i].destroy(true);//true because its from a View
+                    }
+                    this.super.destroy.call(this);
+                }
+            }
+        }())
+);
+
+//TODO: decide whether to include these next 2 classes in the View class
+var Artist = createGameObjectConstructor(function(view){//Paints views, check slides if paint==true and if fixture paints, if it doesn't have draw method turn off paints to optimize
+        //constructor
+    },{
+        //prototype
+    }
+);
+
+var Physicist = createGameObjectConstructor(function(view){//handles physics in a view, skip slides that dont have physics, and fixtures without physics
+        //constructor
+    },{
+        //prototype
+    }
+);
+
+</script>
+<canvas id='c'></canvas>

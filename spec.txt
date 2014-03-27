@@ -1,0 +1,140 @@
+createGameObjectConstructor:
+  location:GLOBAL
+      takes:
+              function/constructor,
+              Object/prototype
+                    --if prototype declares destroy method method must call "this.super.destroy.call(this);" at end
+      returns:
+              Function to be used for creating objects of that class, do not call with "new" operator
+                      properties:
+                                    recent: a function that returns the most recently created object of that class
+                                    instanceArray: an array of instances that the class has created
+                      returns:
+                                 a Sealed Object using the constructor/prototype from before but:
+                                       prototype has constructor reference attached
+                                       prototype has prototype with destroy method
+                                       prototype also gets reference to its prototype via "super"
+      more info:
+                when objects are destroy they're pushed to an array where they're later taken out for reuse (constructor is recalled over them)
+
+Vec2/Vec3:
+  location:GLOBAL
+           takes:
+                   2/3 numbers
+           returns:
+                   Object, a 2/3 dimensional vector with:
+                           x,y(,z) number properties
+                           translate method for making translations
+           more info:
+                     class is made with createGameObjectConstructor so all from that applies
+
+BoundB4:
+  location:GLOBAL
+           takes:
+                   2 numbers (width, height)
+           returns:
+                   Object, a four point bounding box
+           more info:
+                     class is made with createGameObjectConstructor so all from that applies
+                     for use in fixtures when Physicist operates
+
+Clock:
+  location:GLOBAL
+           takes:
+                  loopType (framerate or "true" for requestAnimationFrame)
+           returns:
+                   Object, from clock class has ability to start loops with props:
+                           looping (Boolean):
+                                   getter/setter that switches loops on and off
+                           deltaMiliseconds:
+                                   miliseconds since last loop call
+                           loopType: *for internal use only
+                                 copy of the contructor parameter
+                           loopId: *for internal use only
+                                 id of loop (number)
+                           pinMission:
+                                 method takes function and adds it to __missions where it gets called every loop returns
+                           __missions: *for internal use only
+                                 stack of functions that get called each loop returns
+                           __executeMissionsBound: *for internal use only
+                                 method to run __missions
+
+
+           more info:
+                     class is made with createGameObjectConstructor so all from that applies
+                     starts a loop up and runs functions in its mission stack (__missions)
+
+View:
+  location:GLOBAL
+           takes:
+                   canvas element or id of a canvas
+           returns:
+                   Object, Something to hold slides and a reference to the canvas, with properties:
+                         canvasElement:
+                               DOM element reference to canvas
+                         context:
+                               reference to the canvas's 2d context
+                         slides:
+                               array of all slides in this view
+                         Slide:
+                               class made with "createGameObjectConstructor", more documentation below
+           more info:
+                     class is made with createGameObjectConstructor so all from that applies
+                     1 needed per canvas, destructor handles everything inside (slides fixtures etc)
+
+Slide:
+  location:in View's prototype scope
+           takes:
+                   nothing
+           returns:
+                   Object, with properties:
+                       view:
+                           reference to the view it resides in
+                       cameraPos:
+                           a Vec2, position relative to top-left of camera
+                       fixtures:
+                           an array of Fixture objects
+                       paint:
+                           whether an Artist should paint this slides
+                       physics:
+                           whether a Physicist should operate on this slides
+                       Fixture:
+                           class made with "createGameObjectConstructor", more documentation below
+           more info:
+                     class is made with createGameObjectConstructor so all from that applies
+                     destructor destroys all fixtures within
+
+
+Fixture:
+  location:in Slide's prototype scope
+           takes:
+                   instance, preferably made with "createGameObjectConstructor"
+                   vec3, Vec3
+                   boundb4, BoundB4
+                   OPTphysics, Boolean, whether Physicist operates on fixture *optional defaults to true
+                   OPTpaint, Boolean, whether Artist paints fixture *optional defaults to true
+           returns:
+                   Object, with properties:
+                      slide:
+                            reference to slide fixture resides in
+                      fixture:
+                            reference to instance fixture holds
+                      pos:
+                            Vec3, where fixture is located in slide relative to top left of canvas, then apply slide's camera position
+                      vel:
+                            Vec2, velocity of fixture
+                      boundB:
+                            BoundB4, fixture bounding box
+
+                      physics:
+                            Boolean, whether Physicist operates on fixture
+                      paint:
+                            Boolean, whether Artist paints fixture
+           more info:
+                     class is made with createGameObjectConstructor so all from that applies
+                     for use in fixtures when Physicist operates
+                     all fixtures are stored in the slide's fixture array
+
+Artist:
+
+Physicist:
