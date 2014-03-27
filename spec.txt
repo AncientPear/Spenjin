@@ -4,6 +4,7 @@ createGameObjectConstructor:
               function/constructor,
               Object/prototype
                     --if prototype declares destroy method method must call "this.super.destroy.call(this);" at end
+                    --WARNING since prototypes are copied to new objects they cannot have prototypes themselves
       returns:
               Function to be used for creating objects of that class, do not call with "new" operator
                       properties:
@@ -16,6 +17,7 @@ createGameObjectConstructor:
                                        prototype also gets reference to its prototype via "super"
       more info:
                 when objects are destroy they're pushed to an array where they're later taken out for reuse (constructor is recalled over them)
+
 
 Vec2/Vec3:
   location:GLOBAL
@@ -80,6 +82,18 @@ View:
                                array of all slides in this view
                          Slide:
                                class made with "createGameObjectConstructor", more documentation below
+                         width:
+                               width of canvas DOM as of last update
+                         height:
+                               height of canvas Dom as of last update
+                         resize:
+                               method, call to update this.width/this.height
+                         Artist:
+                               make an Artist for View (only 1 allowed), more documentation below
+                         artist:
+                               reference to View's Artist, false if none
+                         physicist:
+                               reference to View's physicist, false if none
            more info:
                      class is made with createGameObjectConstructor so all from that applies
                      1 needed per canvas, destructor handles everything inside (slides fixtures etc)
@@ -125,6 +139,8 @@ Fixture:
                             Vec3, where fixture is located in slide relative to top left of canvas, then apply slide's camera position
                       vel:
                             Vec2, velocity of fixture
+                      acc:
+                            Vec2, acceleration of fixture
                       boundB:
                             BoundB4, fixture bounding box
 
@@ -138,5 +154,19 @@ Fixture:
                      all fixtures are stored in the slide's fixture array
 
 Artist:
+  location:in View's prototype scope
+       takes:
+             Clock, preferably RAF: "Clock(true)"
+       returns:
+             Object, with properties:
+                   clock:
+                         reference to Artist's Clock
+                   view:
+                         reference to Artist's View
+                   paintView:
+                         function, paints the view
+       more info:
+             a "draw" method included in view.slide.fixture.instance can be used to draw fixtures (1st parameter is canvas context)
+
 
 Physicist:

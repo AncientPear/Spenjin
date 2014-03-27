@@ -1,3 +1,4 @@
+<canvas id='c' width='500' height='500'></canvas>
 <script>
 'use strict';
 
@@ -24,7 +25,7 @@ var createGameObjectConstructor = (function () {
 
 		var instanceRecycleStack = [];
 
-		var outerProto={//TODO: eventually find a way to only create this once
+		var outerProto={
 			destroy:function() {
 				ret.instanceArray.splice(ret.instanceArray.indexOf(this),1);
 				if (instanceRecycleStack.length<100) {instanceRecycleStack.push(this);}//add to recycle pile
@@ -58,20 +59,6 @@ var createGameObjectConstructor = (function () {
 	}
 
 }());
-
-//TEST CASES
-
-var Monster = createGameObjectConstructor(function (level) {
-    this.level=(level || 0);
-
-}, {
-	eatHuman:function () {
-		console.log('human consumed');
-	},
-	destroy:function(){
-		this.super.destroy.call(this);//destroy self
-	}
-});
 
 //TODO: find a home for the next three
 var Vec3 = createGameObjectConstructor(function(x,y,z){
@@ -135,7 +122,7 @@ var Clock = (function() {
 		}
 	};
 
-	var deltaMilisecondsDescriptor={
+    var deltaMilisecondsDescriptor={//TODO: WARNING deltaMiliseconds is flawed, must be different for each mission
 		get:function(){
 			return (new Date().getTime())-this.timeStamp;//final-initial
 		}
@@ -181,13 +168,13 @@ var View = createGameObjectConstructor(function(canvasElement){
         this.height=canvasElement.height;
         this.context=this.canvasElement.getContext('2d');
         this.slides=[];
+        this.artist=false;
+        this.physicist=false;
     },(function(){
 
         var Artist=(function(){
 
-            var viewsThatHaveArtists=[];//Views that already have Artists
-
-            var paintView=function(){
+            var paintView=function(){//TODO: use  translations to incorporate fixture positions and check if inside view area with camera as well
 
                     this.view.context.clearRect(0,0,this.width,this.height)//clear canvas
                     var slides=this.view.slides;
@@ -199,7 +186,7 @@ var View = createGameObjectConstructor(function(canvasElement){
                                 var fixture=slides[i].fixtures[ii];
 
                                 if (fixture.paint){//check if fixture is painted
-                                    if (typeof (fixture.instance.draw)==='function') {fixture.instance.draw();}//draw
+                                    if (typeof (fixture.instance.draw)==='function') {fixture.instance.draw(this.view.context);}//draw
 
                                     else{fixture.paint=false;}//auto switch (remove for perf)
                                 }
@@ -209,15 +196,15 @@ var View = createGameObjectConstructor(function(canvasElement){
                     }
                };
             return createGameObjectConstructor(function(view,clock){//Paints views
-                if (viewsThatHaveArtists.indexOf(view)!=-1) {throw "View already has an Artist";}//TODO: test this
-                else {viewsThatHaveArtists.push(view);}
+                if (view.artist!=false) {throw "View already has an Artist";}
+                else {view.artist=this;}
                 this.clock=clock;
                 this.view=view;
                 this.paintView=paintView.bind(this);
                 clock.pinMission(this.paintView);
             },{
                 destroy:function(){
-                    viewsThatHaveArtists.splice(viewsWithArtists.indexOf(view),1);//View is free to create an Artist again
+                    this.view.artist=false;//View is free to create an Artist again
                     this.clock.unpinMission(this.paintView);
                     this.super.destroy.call(this);
                 }
@@ -239,6 +226,7 @@ var View = createGameObjectConstructor(function(canvasElement){
                     this.instance=instance;
                     this.pos=vec3;
                     this.vel=Vec2(0,0);//starts at rest
+                    this.acc=Vec2(0,0);//acceleration
                     this.boundB=boundb4;
 
                     this.physics=OPTphysics;
@@ -291,18 +279,18 @@ var View = createGameObjectConstructor(function(canvasElement){
                     this.height=canvasElement.height;
                 },
                 destroy:function(){
-                    for (var i in this.slides){
+                    for (var i in this.slides){//destroy all slides
                         this.slides[i].destroy(true);//true because its from a View
                     }
+                    if (this.artist) {this.artist.destroy();}//destroy artist
+                    //TODO:uncomment//if (this.physicist) {this.physicist.destroy();}//destroy artist
                     this.super.destroy.call(this);
                 }
             }
         }())
 );
 
-//TODO: decide whether to include these next 2 classes in the View class
-    //TODO: add acc Vec2 to fixtures
-
+//TODO: decide whether to move Physicist to View
 var Physicist = createGameObjectConstructor(function(view,clock){//handles physics in a view, skip slides that dont have physics, and fixtures without physics
         //constructor
     },{
@@ -316,5 +304,53 @@ var Physicist = createGameObjectConstructor(function(view,clock){//handles physi
      add resize listener to window that interates View's instance array and calls resize on all of them
      */
 
+
+
+//TEST CASES
+
+var DrawableMonster = createGameObjectConstructor(function (level) {
+    this.level=(level || 0);
+
+}, {
+	eatHuman:function () {
+		console.log('human consumed');
+	},
+    draw:function(context){
+        context.fillStyle="black";
+        context.fillRect(0,0,32,32);
+    },
+	destroy:function(){
+		this.super.destroy.call(this);//destroy self
+	}
+});
+
+var UnDrawableMonster = createGameObjectConstructor(function (level) {
+    this.level=(level || 0);
+
+}, {
+	eatHuman:function () {
+		console.log('human consumed');
+	},
+	destroy:function(){
+		this.super.destroy.call(this);//destroy self
+	}
+});
+
+
+    //test Artist
+    console.info('Commencing tests...');
+    var worldView=View('c');
+    console.info('View created...');
+    worldView.Slide();
+    console.info('Slide created...');
+    worldView.slides[0].Fixture(DrawableMonster(999),Vec3(0,0,0),BoundB4(32,32));
+    worldView.slides[0].Fixture(UnDrawableMonster(1),Vec3(0,0,0),BoundB4(32,32));
+    console.info('Fixtures/Monsters created');
+    var worldClock=Clock(true);
+    console.info('Clock created');
+    worldView.Artist(worldClock);
+    console.info('Artist attached, atempting to create another with same View...');
+    worldClock.looping=true;
+    console.info('Clock running');
+
 </script>
-<canvas id='c'></canvas>
