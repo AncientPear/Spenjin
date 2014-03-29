@@ -3,20 +3,19 @@ createGameObjectConstructor:
       takes:
               function/constructor,
               Object/prototype
-                    --if prototype declares destroy method method must call "this.super.destroy.call(this);" at end
+                    --if prototype declares recycle method method must call "this.super.recycle.call(this);" at end
                     --WARNING since prototypes are copied to new objects they cannot have prototypes themselves
       returns:
               Function to be used for creating objects of that class, do not call with "new" operator
                       properties:
-                                    recent: a function that returns the most recently created object of that class
-                                    instanceArray: an array of instances that the class has created
+
                       returns:
                                  a Sealed Object using the constructor/prototype from before but:
                                        prototype has constructor reference attached
-                                       prototype has prototype with destroy method
+                                       prototype has prototype with recycle method
                                        prototype also gets reference to its prototype via "super"
       more info:
-                when objects are destroy they're pushed to an array where they're later taken out for reuse (constructor is recalled over them)
+                when objects are recycle they're pushed to an array where they're later taken out for reuse (constructor is recalled over them)
 
 
 Vec2/Vec3:
@@ -118,7 +117,7 @@ Slide:
                            class made with "createGameObjectConstructor", more documentation below
            more info:
                      class is made with createGameObjectConstructor so all from that applies
-                     destructor destroys all fixtures within
+                     destructor recycles all fixtures within
 
 
 Fixture:
@@ -166,7 +165,7 @@ Artist:
                    paintView:
                          function, paints the view
        more info:
-             a "draw" method included in view.slide.fixture.instance can be used to draw fixtures (1st parameter is canvas context)
+             a "draw" method included in view.slide.fixture.instance can be used to draw fixtures (1st parameter is canvas context 2nd param is reference to fixture)
 
 
 Physicist:

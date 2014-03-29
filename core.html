@@ -2,13 +2,13 @@
 <script>
 'use strict';
 
-var createGameObjectConstructor = (function () {
+    var createGameObjectConstructor = (function () {//TODO: remove 'recent' and instanceArray
 
-	var recent = function () {//every actual object constructor will share this method
+	/*var recent = function () {//every actual object constructor will share this method
 		return (this.instanceArray.length> 0) ? this.instanceArray[this.instanceArray.length - 1] :null;
-	};//add more functions like this to create methods for the "final constructor"
+	};//add more functions like this to create methods for the "final constructor"*/
 
-	var countDescriptor={get: function() {return this.instanceArray.length; } };
+	//var countDescriptor={get: function() {return this.instanceArray.length; } };
 
 	return function (constructor, prototypeProps) {//createGameObjectConstructor
 
@@ -26,9 +26,17 @@ var createGameObjectConstructor = (function () {
 		var instanceRecycleStack = [];
 
 		var outerProto={
-			destroy:function() {
-				ret.instanceArray.splice(ret.instanceArray.indexOf(this),1);
-				if (instanceRecycleStack.length<100) {instanceRecycleStack.push(this);}//add to recycle pile
+			recycle:function() {
+				//ret.instanceArray.splice(ret.instanceArray.indexOf(this),1);
+				if (instanceRecycleStack.length<100) {
+                     for (var i in instanceRecycleStack){//check if object has been recycled
+                         if (instanceRecycleStack[i]===this) {
+                             throw {error:'Object has already been recycled!', object:this};
+                         }
+                     }
+
+                    instanceRecycleStack.push(this);//add to recycle pile
+                }
 			}
 		};
 		var innerProto=Object.create(outerProto,prototypeProps)
@@ -48,13 +56,13 @@ var createGameObjectConstructor = (function () {
 				constructor.apply(instance, arguments);//call constructor on new object
 				Object.seal(instance);//sealed for recyclibility
 			}
-			ret.instanceArray.push(instance);
+			//ret.instanceArray.push(instance);
 			return instance;
 		};
 
-		ret.recent = recent;
-		ret.instanceArray = [];
-		Object.defineProperty(ret, "count", countDescriptor);
+		//ret.recent = recent;
+		//ret.instanceArray = [];
+		//Object.defineProperty(ret, "count", countDescriptor); deprecated for chance of memory leaks
 		return ret;
 	}
 
@@ -66,10 +74,10 @@ var Vec3 = createGameObjectConstructor(function(x,y,z){
 		this.y=y;
 		this.z=z;
 	},{
-		translate:function(x,y,z){
-			this.x+=x;
-			this.y+=y;
-			this.z+=z;
+		add:function(vec3){
+			this.x+=vec3.x;
+			this.y+=vec3.y;
+			this.z+=vec3.z;
 		}
 	}
 );
@@ -78,9 +86,9 @@ var Vec2 = createGameObjectConstructor(function(x,y){
 		this.x=x;
 		this.y=y;
 	},{
-		translate:function(x,y){
-			this.x+=x;
-			this.y+=y;
+		add:function(vec2){
+			this.x+=vec2.x;
+			this.y+=vec2.y;
 		}
 	}
 );
@@ -154,9 +162,9 @@ var Clock = (function() {
                 unpinMission:function(mission){//remove mission from clock
 		    		this.__missions.splice(this.__missions.indexOf(mission),1);
 				},
-				destroy:function(){
+				recycle:function(){
 					this.looping=false;
-					this.super.destroy.call(this);
+					this.super.recycle.call(this);
 				}
 		});
 }());
@@ -164,8 +172,8 @@ var Clock = (function() {
 var View = createGameObjectConstructor(function(canvasElement){
         if (typeof (canvasElement)==='string') {this.canvasElement=document.getElementById(canvasElement);}//treat canvasElement as an Id
         else {this.canvasElement=canvasElement;}
-        this.width=canvasElement.width;
-        this.height=canvasElement.height;
+        this.width=this.canvasElement.width;
+        this.height=this.canvasElement.height;
         this.context=this.canvasElement.getContext('2d');
         this.slides=[];
         this.artist=false;
@@ -175,26 +183,41 @@ var View = createGameObjectConstructor(function(canvasElement){
         var Artist=(function(){
 
             var paintView=function(){//TODO: use  translations to incorporate fixture positions and check if inside view area with camera as well
+                //TODO: incorporate 3rd dimension (depth)
+                    var context=this.view.context;
 
-                    this.view.context.clearRect(0,0,this.width,this.height)//clear canvas
+                    context.clearRect(0,0,this.view.width,this.view.height)//clear canvas
                     var slides=this.view.slides;
 
                     for (var i in slides) {
                         if (slides[i].paint){//check if slide gets painted
+
                             for (var ii in slides[i].fixtures){
 
                                 var fixture=slides[i].fixtures[ii];
 
                                 if (fixture.paint){//check if fixture is painted
-                                    if (typeof (fixture.instance.draw)==='function') {fixture.instance.draw(this.view.context);}//draw
 
-                                    else{fixture.paint=false;}//auto switch (remove for perf)
-                                }
-                            }
-                        }
+                                    if (typeof (fixture.instance.draw)==='function') {
+                                        var xdiff=(fixture.pos.x - slides[i].cameraPos.x),//draw fixture in the right spot
+                                            ydiff=(fixture.pos.y - slides[i].cameraPos.y);
+                                        if ((xdiff>=0 && xdiff<this.view.width) && (ydiff>=0 && ydiff<this.view.height)){//check if fixture's inside canvas
+                                            context.save();
+                                            context.translate(xdiff, ydiff);
+                                            fixture.instance.draw(context,fixture);//draw
+                                            context.restore();
+                                        }
+                                        else {continue;}//fixture not in canvas
+                                    }
 
-                    }
-               };
+                                   else{fixture.paint=false;}//auto switch (remove for perf)
+                               }
+                           }
+                      }
+                 }
+
+         };
+
             return createGameObjectConstructor(function(view,clock){//Paints views
                 if (view.artist!=false) {throw "View already has an Artist";}
                 else {view.artist=this;}
@@ -203,10 +226,10 @@ var View = createGameObjectConstructor(function(canvasElement){
                 this.paintView=paintView.bind(this);
                 clock.pinMission(this.paintView);
             },{
-                destroy:function(){
+                recycle:function(){
                     this.view.artist=false;//View is free to create an Artist again
                     this.clock.unpinMission(this.paintView);
-                    this.super.destroy.call(this);
+                    this.super.recycle.call(this);
                 }
             });
       }());
@@ -234,13 +257,13 @@ var View = createGameObjectConstructor(function(canvasElement){
                     slide.fixtures.push(this);
                 },{
 
-                    destroy:function(fromSlide){//if being destroyed from a Slide splicing will mess it up
+                    recycle:function(fromSlide){//if being recycleed from a Slide splicing will mess it up
                         if (typeof(fromSlide)==='undefined') {this.slide.fixtures.splice(this.slide.fixtures.indexOf(this),1);}//remove from slide's fixtures array
-                        this.fixture.destroy();
-                        this.pos.destroy();
-                        this.vel.destroy();
-                        this.boundB.destroy();
-                        this.super.destroy.call(this);
+                        this.fixture.recycle();
+                        this.pos.recycle();
+                        this.vel.recycle();
+                        this.boundB.recycle();
+                        this.super.recycle.call(this);
                     }
                 }
             );
@@ -252,14 +275,14 @@ var View = createGameObjectConstructor(function(canvasElement){
                         return Fixture(this,instance,vec3,boundb4,OPTphysics,OPTpaint);
                     },
 
-                    destroy:function(fromView){//if being destroyed from a View splicing will mess it up
+                    recycle:function(fromView){//if being recycleed from a View splicing will mess it up
                         if (typeof(fromView)==='undefined') {
                             this.view.slides.splice(this.view.slides.indexOf(this),1);
                         }
                         for (var i in this.fixtures){
-                            this.fixtures[i].destroy(true);//true because its from a View
+                            this.fixtures[i].recycle(true);//true because its from a View
                         }
-                        this.super.destroy.call(this);
+                        this.super.recycle.call(this);
                     }
                 }
             }())
@@ -278,13 +301,13 @@ var View = createGameObjectConstructor(function(canvasElement){
                     this.width=canvasElement.width;
                     this.height=canvasElement.height;
                 },
-                destroy:function(){
-                    for (var i in this.slides){//destroy all slides
-                        this.slides[i].destroy(true);//true because its from a View
+                recycle:function(){
+                    for (var i in this.slides){//recycle all slides
+                        this.slides[i].recycle(true);//true because its from a View
                     }
-                    if (this.artist) {this.artist.destroy();}//destroy artist
-                    //TODO:uncomment//if (this.physicist) {this.physicist.destroy();}//destroy artist
-                    this.super.destroy.call(this);
+                    if (this.artist) {this.artist.recycle();}//recycle artist
+                    //TODO:uncomment//if (this.physicist) {this.physicist.recycle();}//recycle physicist
+                    this.super.recycle.call(this);
                 }
             }
         }())
@@ -315,12 +338,12 @@ var DrawableMonster = createGameObjectConstructor(function (level) {
 	eatHuman:function () {
 		console.log('human consumed');
 	},
-    draw:function(context){
+    draw:function(context,fixture){
         context.fillStyle="black";
         context.fillRect(0,0,32,32);
     },
-	destroy:function(){
-		this.super.destroy.call(this);//destroy self
+	recycle:function(){
+		this.super.recycle.call(this);//recycle self
 	}
 });
 
@@ -331,8 +354,8 @@ var UnDrawableMonster = createGameObjectConstructor(function (level) {
 	eatHuman:function () {
 		console.log('human consumed');
 	},
-	destroy:function(){
-		this.super.destroy.call(this);//destroy self
+	recycle:function(){
+		this.super.recycle.call(this);//recycle self
 	}
 });
 
@@ -343,8 +366,8 @@ var UnDrawableMonster = createGameObjectConstructor(function (level) {
     console.info('View created...');
     worldView.Slide();
     console.info('Slide created...');
-    worldView.slides[0].Fixture(DrawableMonster(999),Vec3(0,0,0),BoundB4(32,32));
-    worldView.slides[0].Fixture(UnDrawableMonster(1),Vec3(0,0,0),BoundB4(32,32));
+    var M=worldView.slides[0].Fixture(DrawableMonster(999),Vec3(0,0,0),BoundB4(32,32));
+    var M2=worldView.slides[0].Fixture(UnDrawableMonster(1),Vec3(0,0,0),BoundB4(32,32));
     console.info('Fixtures/Monsters created');
     var worldClock=Clock(true);
     console.info('Clock created');
