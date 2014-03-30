@@ -2,7 +2,7 @@
 <script>
 'use strict';
 
-    var createGameObjectConstructor = (function () {//TODO: remove 'recent' and instanceArray
+    var createGameObjectConstructor = (function () {
 
 	/*var recent = function () {//every actual object constructor will share this method
 		return (this.instanceArray.length> 0) ? this.instanceArray[this.instanceArray.length - 1] :null;
@@ -103,6 +103,19 @@ var BoundB4 = createGameObjectConstructor(function(width,height){
 
 var Clock = (function() {
 
+
+    var Mission=createGameObjectConstructor(function(action){
+        this.timeStamp=(new Date().getTime());
+        this.__action=action;
+    },{
+        run:function(){
+            //var currentTime=(new Date().getTime());
+            //this.__action(currentTime-this.timeStamp);//send elapsed miliseconds to every action
+            //this.timeStamp=currentTime;
+            this.__action();
+        }
+    });
+
 	var loopingDescriptor={
 		get:function(){
 			if (this.loopId!==false) {return true;}
@@ -130,25 +143,16 @@ var Clock = (function() {
 		}
 	};
 
-    var deltaMilisecondsDescriptor={//TODO: WARNING deltaMiliseconds is flawed, must be different for each mission
-		get:function(){
-			return (new Date().getTime())-this.timeStamp;//final-initial
-		}
-	};
-
     var __executeMissions=function(){
-		this.timeStamp=(new Date().getTime());//time in miliseconds
 
 		if (this.looping) {this.loopId=window.requestAnimationFrame(this.__executeMissionsBound);}
 
-        for (var i in this.__missions){//not ordered
-			this.__missions[i]();
+        for (var i in this.__missions){//Not Ordered
+			this.__missions[i].run();
 		}
 	};
 
 	return createGameObjectConstructor(function(loopType){//loopType: framerate number or it'll use RAF
-			this.timeStamp=(new Date().getTime());
-			Object.defineProperty(this,'deltaMiliseconds', deltaMilisecondsDescriptor);
 
 			this.loopType=loopType;
 			this.loopId=false;
@@ -156,14 +160,23 @@ var Clock = (function() {
 			Object.defineProperty(this,'looping', loopingDescriptor);
 			this.__missions = [];//stack of functions for clock to call on interval
 		},{
-			    pinMission:function(mission){//add mission (function) to clock
-		    		this.__missions.push(mission);
+			    pinMission:function(action){//add mission (function) to clock
+                    this.__missions.push(Mission(action));
 				},
-                unpinMission:function(mission){//remove mission from clock
-		    		this.__missions.splice(this.__missions.indexOf(mission),1);
+                unpinMission:function(action){//remove mission from clock
+                    for (var i in this.__missions){
+                        if (this.__missions[i].__action===action){
+                            this.__missions[i].recycle();
+                            this.__missions.splice(i,1);
+                            break;
+                        }
+                    }
 				},
 				recycle:function(){
 					this.looping=false;
+                    for (var i in this.__missions){
+                        this.missions[i].recycle();
+                    }
 					this.super.recycle.call(this);
 				}
 		});
@@ -182,7 +195,7 @@ var View = createGameObjectConstructor(function(canvasElement){
 
         var Artist=(function(){
 
-            var paintView=function(){//TODO: use  translations to incorporate fixture positions and check if inside view area with camera as well
+            var paintView=function(){
                 //TODO: incorporate 3rd dimension (depth)
                     var context=this.view.context;
 
@@ -315,18 +328,12 @@ var View = createGameObjectConstructor(function(canvasElement){
 
 //TODO: decide whether to move Physicist to View
 var Physicist = createGameObjectConstructor(function(view,clock){//handles physics in a view, skip slides that dont have physics, and fixtures without physics
+    //make sure to use timestamp with acceleration
         //constructor
     },{
         //prototype
     }
 );
-
-
-//TODO: finish this and place in events
-     /*
-     add resize listener to window that interates View's instance array and calls resize on all of them
-     */
-
 
 
 //TEST CASES
@@ -360,7 +367,7 @@ var UnDrawableMonster = createGameObjectConstructor(function (level) {
 });
 
 
-    //test Artist
+    /*//test Artist
     console.info('Commencing tests...');
     var worldView=View('c');
     console.info('View created...');
@@ -375,5 +382,11 @@ var UnDrawableMonster = createGameObjectConstructor(function (level) {
     console.info('Artist attached, atempting to create another with same View...');
     worldClock.looping=true;
     console.info('Clock running');
+    */
 
+    clock=Clock(30);
+    clock.pinMission(function(dtime){console.log(dtime);});
+    clock.looping=true;
+
+    //TODO: ^^why does this crash and not go at 33fps? eventually just slows down
 </script>

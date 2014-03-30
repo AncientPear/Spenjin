@@ -67,6 +67,8 @@ Clock:
                      class is made with createGameObjectConstructor so all from that applies
                      starts a loop up and runs functions in its mission stack (__missions)
 
+//TODO: add Mission spec
+
 View:
   location:GLOBAL
            takes:
