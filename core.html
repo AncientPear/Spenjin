@@ -109,10 +109,9 @@ var Clock = (function() {
         this.__action=action;
     },{
         run:function(){
-            //var currentTime=(new Date().getTime());
-            //this.__action(currentTime-this.timeStamp);//send elapsed miliseconds to every action
-            //this.timeStamp=currentTime;
-            this.__action();
+            var currentTime=(new Date().getTime());
+            this.__action(currentTime-this.timeStamp);//send elapsed miliseconds to every action
+            this.timeStamp=currentTime;
         }
     });
 
@@ -129,6 +128,12 @@ var Clock = (function() {
 				else {
 					this.loopId=window.requestAnimationFrame(this.__executeMissionsBound);
 				}
+
+                //reset all time stamps
+                for (var i in this.__missions){
+                    this.__missions[i].timeStamp=(new Date().getTime());
+                }
+
 			}
 			else if (!bool && this.loopId!==false){
 				if (typeof (this.loopType)==='number'){
@@ -145,7 +150,7 @@ var Clock = (function() {
 
     var __executeMissions=function(){
 
-		if (this.looping) {this.loopId=window.requestAnimationFrame(this.__executeMissionsBound);}
+		if (this.looping && typeof (this.loopId)!=='number') {this.loopId=window.requestAnimationFrame(this.__executeMissionsBound);}
 
         for (var i in this.__missions){//Not Ordered
 			this.__missions[i].run();
@@ -168,9 +173,10 @@ var Clock = (function() {
                         if (this.__missions[i].__action===action){
                             this.__missions[i].recycle();
                             this.__missions.splice(i,1);
-                            break;
+                            return;
                         }
                     }
+                    throw {error:'action not found in __missions', action:action};
 				},
 				recycle:function(){
 					this.looping=false;
@@ -384,7 +390,7 @@ var UnDrawableMonster = createGameObjectConstructor(function (level) {
     console.info('Clock running');
     */
 
-    clock=Clock(30);
+    var clock=Clock(3000);
     clock.pinMission(function(dtime){console.log(dtime);});
     clock.looping=true;
 
