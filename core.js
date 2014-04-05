@@ -1,16 +1,12 @@
-<canvas id='c' width='500' height='500'></canvas>
-<script>
 'use strict';
 
-    var createGameObjectConstructor = (function () {
+    var rClass = (function () {
 
 	/*var recent = function () {//every actual object constructor will share this method
 		return (this.instanceArray.length> 0) ? this.instanceArray[this.instanceArray.length - 1] :null;
 	};//add more functions like this to create methods for the "final constructor"*/
 
-	//var countDescriptor={get: function() {return this.instanceArray.length; } };
-
-	return function (constructor, prototypeProps) {//createGameObjectConstructor
+	return function (constructor, prototypeProps) {//rClass
 
 		//convert prototypeProps into properties object
 		for (var i in prototypeProps){
@@ -18,16 +14,15 @@
 			prototypeProps[i]={
 				value:quicksave,
 				writable: false,
-     			enumerable: true,
-     			configurable: false
-			}
+     		enumerable: true,
+     	  configurable: false
+			};
 		}
 
 		var instanceRecycleStack = [];
 
 		var outerProto={
 			recycle:function() {
-				//ret.instanceArray.splice(ret.instanceArray.indexOf(this),1);
 				if (instanceRecycleStack.length<100) {
                      for (var i in instanceRecycleStack){//check if object has been recycled
                          if (instanceRecycleStack[i]===this) {
@@ -56,20 +51,16 @@
 				constructor.apply(instance, arguments);//call constructor on new object
 				Object.seal(instance);//sealed for recyclibility
 			}
-			//ret.instanceArray.push(instance);
 			return instance;
 		};
 
-		//ret.recent = recent;
-		//ret.instanceArray = [];
-		//Object.defineProperty(ret, "count", countDescriptor); deprecated for chance of memory leaks
 		return ret;
 	}
 
 }());
 
 //TODO: find a home for the next three
-var Vec3 = createGameObjectConstructor(function(x,y,z){
+var Vec3 = rClass(function(x,y,z){
 		this.x=x;
 		this.y=y;
 		this.z=z;
@@ -82,7 +73,7 @@ var Vec3 = createGameObjectConstructor(function(x,y,z){
 	}
 );
 
-var Vec2 = createGameObjectConstructor(function(x,y){
+var Vec2 = rClass(function(x,y){
 		this.x=x;
 		this.y=y;
 	},{
@@ -93,7 +84,7 @@ var Vec2 = createGameObjectConstructor(function(x,y){
 	}
 );
 
-var BoundB4 = createGameObjectConstructor(function(width,height){
+var BoundB4 = rClass(function(width,height){
         this.width=width;
         this.height=height;
     },{
@@ -104,7 +95,7 @@ var BoundB4 = createGameObjectConstructor(function(width,height){
 var Clock = (function() {
 
 
-    var Mission=createGameObjectConstructor(function(action){
+    var Mission=rClass(function(action){
         this.timeStamp=(new Date().getTime());
         this.__action=action;
     },{
@@ -157,7 +148,7 @@ var Clock = (function() {
 		}
 	};
 
-	return createGameObjectConstructor(function(loopType){//loopType: framerate number or it'll use RAF
+	return rClass(function(loopType){//loopType: framerate number or it'll use RAF
 
 			this.loopType=loopType;
 			this.loopId=false;
@@ -188,7 +179,7 @@ var Clock = (function() {
 		});
 }());
 
-var View = createGameObjectConstructor(function(canvasElement){
+var View = rClass(function(canvasElement){
         if (typeof (canvasElement)==='string') {this.canvasElement=document.getElementById(canvasElement);}//treat canvasElement as an Id
         else {this.canvasElement=canvasElement;}
         this.width=this.canvasElement.width;
@@ -237,7 +228,7 @@ var View = createGameObjectConstructor(function(canvasElement){
 
          };
 
-            return createGameObjectConstructor(function(view,clock){//Paints views
+            return rClass(function(view,clock){//Paints views
                 if (view.artist!=false) {throw "View already has an Artist";}
                 else {view.artist=this;}
                 this.clock=clock;
@@ -254,7 +245,7 @@ var View = createGameObjectConstructor(function(canvasElement){
       }());
 
 
-         var Slide=createGameObjectConstructor(function(view){//where fixtures are stored
+         var Slide=rClass(function(view){//where fixtures are stored
                 this.view=view;
                 this.cameraPos=Vec2(0,0);//relative to top-left of canvas
                 this.fixtures=[];//instances with coordinates attached
@@ -263,7 +254,7 @@ var View = createGameObjectConstructor(function(canvasElement){
                 view.slides.push(this);
             },(function(){
 
-             var Fixture=createGameObjectConstructor(function(slide,instance,vec3,boundb4,OPTphysics,OPTpaint){//fixtures go in slides
+             var Fixture=rClass(function(slide,instance,vec3,boundb4,OPTphysics,OPTpaint){//fixtures go in slides
                     this.slide=slide;
                     this.instance=instance;
                     this.pos=vec3;
@@ -333,7 +324,7 @@ var View = createGameObjectConstructor(function(canvasElement){
 );
 
 //TODO: decide whether to move Physicist to View
-var Physicist = createGameObjectConstructor(function(view,clock){//handles physics in a view, skip slides that dont have physics, and fixtures without physics
+var Physicist = rClass(function(view,clock){//handles physics in a view, skip slides that dont have physics, and fixtures without physics
     //make sure to use timestamp with acceleration
         //constructor
     },{
@@ -344,7 +335,7 @@ var Physicist = createGameObjectConstructor(function(view,clock){//handles physi
 
 //TEST CASES
 
-var DrawableMonster = createGameObjectConstructor(function (level) {
+var DrawableMonster = rClass(function (level) {
     this.level=(level || 0);
 
 }, {
@@ -360,7 +351,7 @@ var DrawableMonster = createGameObjectConstructor(function (level) {
 	}
 });
 
-var UnDrawableMonster = createGameObjectConstructor(function (level) {
+var UnDrawableMonster = rClass(function (level) {
     this.level=(level || 0);
 
 }, {
@@ -394,5 +385,3 @@ var UnDrawableMonster = createGameObjectConstructor(function (level) {
     clock.pinMission(function(dtime){console.log(dtime);});
     clock.looping=true;
 
-    //TODO: ^^why does this crash and not go at 33fps? eventually just slows down
-</script>
