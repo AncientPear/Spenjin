@@ -335,33 +335,7 @@ var Physicist = rClass(function(view,clock){//handles physics in a view, skip sl
 
 //TEST CASES
 
-var DrawableMonster = rClass(function (level) {
-    this.level=(level || 0);
 
-}, {
-	eatHuman:function () {
-		console.log('human consumed');
-	},
-    draw:function(context,fixture){
-        context.fillStyle="black";
-        context.fillRect(0,0,32,32);
-    },
-	recycle:function(){
-		this.super.recycle.call(this);//recycle self
-	}
-});
-
-var UnDrawableMonster = rClass(function (level) {
-    this.level=(level || 0);
-
-}, {
-	eatHuman:function () {
-		console.log('human consumed');
-	},
-	recycle:function(){
-		this.super.recycle.call(this);//recycle self
-	}
-});
 
 
     /*//test Artist

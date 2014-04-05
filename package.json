@@ -1,0 +1,26 @@
+{
+  "name": "Spenjin",
+  "version": "0.0.8",
+  "description": "HTML5 game engine, designed for having multiple locations and velocities on the same objects.",
+  "main": "core.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/spleen387/Spenjin.git"
+  },
+  "keywords": [
+    "ES5",
+    "game-engine",
+    "javascript"
+  ],
+  "author": "Spencer Killen",
+  "license": "None",
+  "bugs": {
+    "url": "https://github.com/spleen387/Spenjin/issues"
+  }
+}
