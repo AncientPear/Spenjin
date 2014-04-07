@@ -316,46 +316,52 @@ var View = rClass(function(canvasElement){
                         this.slides[i].recycle(true);//true because its from a View
                     }
                     if (this.artist) {this.artist.recycle();}//recycle artist
-                    //TODO:uncomment//if (this.physicist) {this.physicist.recycle();}//recycle physicist
+                    if (this.physicist) {this.physicist.recycle();}//recycle physicist
                     this.super.recycle.call(this);
                 }
             }
         }())
 );
 
-//TODO: decide whether to move Physicist to View
-var Physicist = rClass(function(view,clock){//handles physics in a view, skip slides that dont have physics, and fixtures without physics
-    //make sure to use timestamp with acceleration
-        //constructor
-    },{
-        //prototype
-    }
-);
 
+var Physicist=(function(){ //make sure to use timestamp with acceleration
 
-//TEST CASES
+      var physicsView=function(){
 
+                var slides=this.view.slides;
 
+                for (var i in slides) {
+                    if (slides[i].physics){//check if slide gets painted
 
+                        for (var ii in slides[i].fixtures){
 
-    /*//test Artist
-    console.info('Commencing tests...');
-    var worldView=View('c');
-    console.info('View created...');
-    worldView.Slide();
-    console.info('Slide created...');
-    var M=worldView.slides[0].Fixture(DrawableMonster(999),Vec3(0,0,0),BoundB4(32,32));
-    var M2=worldView.slides[0].Fixture(UnDrawableMonster(1),Vec3(0,0,0),BoundB4(32,32));
-    console.info('Fixtures/Monsters created');
-    var worldClock=Clock(true);
-    console.info('Clock created');
-    worldView.Artist(worldClock);
-    console.info('Artist attached, atempting to create another with same View...');
-    worldClock.looping=true;
-    console.info('Clock running');
-    */
+                           var fixture=slides[i].fixtures[ii];
 
-    var clock=Clock(3000);
-    clock.pinMission(function(dtime){console.log(dtime);});
-    clock.looping=true;
+                           if (fixture.physics){//check if fixture is painted
+                               if (typeof (fixture.instance.operate)==='function') {
+                                  //TODO: stuff here
+                                 //TODO: move fixtures with velocities
+                               }
 
+                               else{fixture.physics=false;}//auto switch (remove for perf)
+                           }
+                       }
+                  }
+             }
+     };
+
+        return rClass(function(view,clock){//Paints views
+            if (view.physicist!=false) {throw "View already has a Physicist";}
+            else {view.physicist=this;}
+            this.clock=clock;
+            this.view=view;
+            this.physicsView=physicsView.bind(this);
+            clock.pinMission(this.physicsView);
+        },{
+            recycle:function(){
+                this.view.physicist=false;//View is free to create an Artist again
+                this.clock.unpinMission(this.physicsView);
+                this.super.recycle.call(this);
+            }
+        });
+}());
